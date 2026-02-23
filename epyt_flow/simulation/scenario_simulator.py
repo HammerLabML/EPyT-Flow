@@ -1179,7 +1179,7 @@ class ScenarioSimulator():
         # Get all demand patterns
         demand_patterns_idx = [self.epanet_api.get_node_demand_patterns_idx(node_idx)
                                for node_idx in self.epanet_api.get_all_nodes_idx()]
-        demand_patterns_idx = list(set(itertools.chain.from_iterable(demand_patterns_idx)))
+        demand_patterns_idx = list(filter(lambda idx: idx != 0, set(itertools.chain.from_iterable(demand_patterns_idx))))
 
         # Process each pattern separately
         for pattern_idx in demand_patterns_idx:
