@@ -1918,7 +1918,8 @@ class ScadaData(Serializable):
         Computes the final sensor readings -- note that those might be subject to
         given sensor faults and sensor noise/uncertainty.
 
-        Columns (i.e. sensor readings) are ordered as follows:
+        If the ordering has not been changed in the sensor config,
+        the columns (i.e. sensor readings) are ordered as follows:
 
             1. Pressures
             2. Flows
@@ -1933,6 +1934,8 @@ class ScadaData(Serializable):
             11. Surface species concentrations
             12. Bulk species nodes concentrations
             13. Bulk species links concentrations
+
+        Otherwise, the ordering follows the one specified in the sensor config
 
         Returns
         -------

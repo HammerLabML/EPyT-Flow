@@ -334,6 +334,26 @@ class SensorConfig(JsonSerializable):
         List of all tanks (i.e. IDs) in the network.
     species : `list[str]`
         List of all (EPANET-MSX) species (i.e. IDs) in the network
+    sensor_ordering : `list[int]`, optional
+        Ordering of sensor types in this list specifies the ordering of the sensor readings.
+        The list must contain every sensor type, no matter if a sensor of that type is placed or not!
+
+        If None, the following default will be used:
+            - 1 -> pressure sensor
+            - 2 -> node quality sensor
+            - 3 -> demand sensor
+            - 4 -> flow sensor
+            - 5 -> link quality sensor
+            - 6 -> valve state sensor
+            - 7 -> pump state sensor
+            - 8 -> tank volume sensor
+            - 9 -> node bulk species sensor
+            - 10 -> link bulk species sensor
+            - 11 -> surface species sensor
+            - 12 -> pump efficiency sensor
+            - 13 -> pump energy consumption sensor
+
+        The default is None.
     pressure_sensors : `list[str]`, optional
         List of all nodes (i.e. IDs) at which a pressure sensor is placed.
 
@@ -484,6 +504,7 @@ class SensorConfig(JsonSerializable):
     def __init__(self, nodes: list[str], links: list[str], valves: list[str], pumps: list[str],
                  tanks: list[str], bulk_species: list[str], surface_species: list[str],
                  flow_unit: int,
+                 sensor_ordering: list[int] = None,
                  pressure_sensors: list[str] = [],
                  flow_sensors: list[str] = [],
                  demand_sensors: list[str] = [],
@@ -553,6 +574,29 @@ class SensorConfig(JsonSerializable):
                             f"but not of '{type(surface_species)}'")
         if any(not isinstance(surface_species_id, str) for surface_species_id in surface_species):
             raise TypeError("Each item in 'surface_species' must be an instance of 'str'")
+
+        default_sensor_ordering = [
+                        SENSOR_TYPE_NODE_PRESSURE,
+                        SENSOR_TYPE_LINK_FLOW,
+                        SENSOR_TYPE_NODE_DEMAND,
+                        SENSOR_TYPE_NODE_QUALITY,
+                        SENSOR_TYPE_LINK_QUALITY,
+                        SENSOR_TYPE_VALVE_STATE,
+                        SENSOR_TYPE_PUMP_STATE,
+                        SENSOR_TYPE_PUMP_EFFICIENCY,
+                        SENSOR_TYPE_PUMP_ENERGYCONSUMPTION,
+                        SENSOR_TYPE_TANK_VOLUME,
+                        SENSOR_TYPE_SURFACE_SPECIES,
+                        SENSOR_TYPE_NODE_BULK_SPECIES,
+                        SENSOR_TYPE_LINK_BULK_SPECIES,
+                    ]
+        if sensor_ordering is not None:
+            if not isinstance(sensor_ordering, list):
+                raise TypeError("'sensor_ordering' must be an instance of 'list[int]' " +
+                                f"but not of '{type(sensor_ordering)}'")
+            if any(s_id not in sensor_ordering for s_id in default_sensor_ordering) or \
+                    len(sensor_ordering) != len(default_sensor_ordering):
+                raise ValueError("Invalid 'sensor_ordering'")
 
         if not isinstance(pressure_sensors, list):
             raise TypeError("'pressure_sensors' must be an instance of 'list[str]' " +
@@ -774,21 +818,8 @@ class SensorConfig(JsonSerializable):
         self.__bulk_species_mass_unit = bulk_species_mass_unit
         self.__surface_species_mass_unit = surface_species_mass_unit
         self.__surface_species_area_unit = surface_species_area_unit
-        self.__sensor_ordering = [
-            SENSOR_TYPE_NODE_PRESSURE,
-            SENSOR_TYPE_LINK_FLOW,
-            SENSOR_TYPE_NODE_DEMAND,
-            SENSOR_TYPE_NODE_QUALITY,
-            SENSOR_TYPE_LINK_QUALITY,
-            SENSOR_TYPE_VALVE_STATE,
-            SENSOR_TYPE_PUMP_STATE,
-            SENSOR_TYPE_PUMP_EFFICIENCY,
-            SENSOR_TYPE_PUMP_ENERGYCONSUMPTION,
-            SENSOR_TYPE_TANK_VOLUME,
-            SENSOR_TYPE_SURFACE_SPECIES,
-            SENSOR_TYPE_NODE_BULK_SPECIES,
-            SENSOR_TYPE_LINK_BULK_SPECIES,
-        ]
+        self.__sensor_ordering = default_sensor_ordering if sensor_ordering is None \
+            else sensor_ordering
 
         self.__compute_indices()    # Compute indices
 
@@ -993,22 +1024,60 @@ class SensorConfig(JsonSerializable):
         Returns the order in which sensors are included in ScadaData objects
         i.e. if you call a ScadaData's get_data() method, the resulting array
         will contain sensor readings in the order returned by this method.
-        Constants have the following meaning:
-        1 -> pressure sensor
-        2 -> node quality sensor
-        3 -> demand sensor
-        4 -> flow sensor
-        5 -> link quality sensor
-        6 -> valve state sensor
-        7 -> pump state sensor
-        8 -> tank volume sensor
-        9 -> node bulk species sensor
-        10 -> link bulk species sensor
-        11 -> surface species sensor
-        12 -> pump efficiency sensor
-        13 -> pump energy consumption sensor
+
+        Returns
+        -------
+        `list[int]`
+            List of sensor types, specifying the ordering of sensor readings.
+
+            Constants have the following meaning:
+                - 1 -> pressure sensor
+                - 2 -> node quality sensor
+                - 3 -> demand sensor
+                - 4 -> flow sensor
+                - 5 -> link quality sensor
+                - 6 -> valve state sensor
+                - 7 -> pump state sensor
+                - 8 -> tank volume sensor
+                - 9 -> node bulk species sensor
+                - 10 -> link bulk species sensor
+                - 11 -> surface species sensor
+                - 12 -> pump efficiency sensor
+                - 13 -> pump energy consumption sensor
         """
-        return self.__sensor_ordering
+        return self.__sensor_ordering.copy()
+
+    @sensor_ordering.setter
+    def sensor_ordering(self, new_sensor_ordering: list[int]) -> None:
+        """
+        Specifies a new ordering of the sensor readings.
+
+        Parameters
+        ----------
+        new_sensor_ordering : `list[int]`
+            Ordering of sensor types in this list specifies the ordering of the sensor readings.
+            The list must contain every sensor type, no matter if a sensor of that type is placed or not!
+
+            List of all existing sensor types:
+                - 1 -> pressure sensor
+                - 2 -> node quality sensor
+                - 3 -> demand sensor
+                - 4 -> flow sensor
+                - 5 -> link quality sensor
+                - 6 -> valve state sensor
+                - 7 -> pump state sensor
+                - 8 -> tank volume sensor
+                - 9 -> node bulk species sensor
+                - 10 -> link bulk species sensor
+                - 11 -> surface species sensor
+                - 12 -> pump efficiency sensor
+                - 13 -> pump energy consumption sensor
+        """
+        if len(new_sensor_ordering) != len(self.__sensor_ordering) or \
+                any(s_id not in new_sensor_ordering for s_id in self.__sensor_ordering):
+            raise ValueError("Invalid 'new_sensor_ordering'")
+
+        self.__sensor_ordering = new_sensor_ordering.copy()
 
     def map_node_id_to_idx(self, node_id: str) -> int:
         """
@@ -1937,6 +2006,7 @@ class SensorConfig(JsonSerializable):
                 "valves": self.__valves, "pumps": self.__pumps,
                 "tanks": self.__tanks, "bulk_species": self.__bulk_species,
                 "surface_species": self.__surface_species,
+                "sensor_ordering": self.__sensor_ordering,
                 "pressure_sensors": self.__pressure_sensors,
                 "flow_sensors": self.__flow_sensors,
                 "demand_sensors": self.__demand_sensors,
@@ -1974,6 +2044,7 @@ class SensorConfig(JsonSerializable):
             and self.__valves == other.valves and self.__pumps == other.pumps \
             and self.__tanks == other.tanks and self.__bulk_species == other.bulk_species \
             and self.__surface_species == other.surface_species \
+            and self.__sensor_ordering == other.sensor_ordering \
             and self.__pressure_sensors == other.pressure_sensors \
             and self.__flow_sensors == other.flow_sensors \
             and self.__demand_sensors == other.demand_sensors \
@@ -2004,6 +2075,7 @@ class SensorConfig(JsonSerializable):
         return f"nodes: {self.__nodes} links: {self.__links} valves: {self.__valves} " +\
             f"pumps: {self.__pumps} tanks: {self.__tanks} bulk_species: {self.__bulk_species} " +\
             f"surface_species: {self.__surface_species} " + \
+            f"sensor ordering: {self.__sensor_ordering} " + \
             f"node_id_to_idx: {self.__node_id_to_idx} link_id_to_idx: {self.__link_id_to_idx} " +\
             f"pump_id_to_idx: {self.__pump_id_to_idx} tank_id_to_idx: {self.__tank_id_to_idx} " +\
             f"valve_id_to_idx: {self.__valve_id_to_idx} " +\
