@@ -8,9 +8,9 @@ import numpy as np
 from epanet_plus import EpanetConstants, EPyT
 
 from ..serialization import SENSOR_CONFIG_ID, JsonSerializable, serializable
-from ..utils import flowunit_to_str, pressureunit_to_str, massunit_to_str, \
-    TIME_UNIT_HRS, MASS_UNIT_MG, MASS_UNIT_UG, MASS_UNIT_MOL, MASS_UNIT_MMOL, MASS_UNIT_CUSTOM, \
-    AREA_UNIT_FT2, AREA_UNIT_M2, AREA_UNIT_CM2
+from ..utils import flowunit_to_str, pressureunit_to_str, massunit_to_str, areaunit_to_str, \
+    qualityunit_to_str, TIME_UNIT_HRS, MASS_UNIT_MG, MASS_UNIT_UG, MASS_UNIT_MOL, \
+    MASS_UNIT_MMOL, MASS_UNIT_CUSTOM, AREA_UNIT_FT2, AREA_UNIT_M2, AREA_UNIT_CM2
 
 
 SENSOR_TYPE_NODE_PRESSURE          = 1
