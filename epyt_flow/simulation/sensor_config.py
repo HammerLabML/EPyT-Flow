@@ -1,13 +1,16 @@
 """
 Module provides a class for implementing sensor configurations.
 """
+from typing import Optional
 from copy import deepcopy
 import itertools
 import numpy as np
 from epanet_plus import EpanetConstants, EPyT
-from typing import Optional
 
 from ..serialization import SENSOR_CONFIG_ID, JsonSerializable, serializable
+from ..utils import flowunit_to_str, pressureunit_to_str, massunit_to_str, \
+    TIME_UNIT_HRS, MASS_UNIT_MG, MASS_UNIT_UG, MASS_UNIT_MOL, MASS_UNIT_MMOL, MASS_UNIT_CUSTOM, \
+    AREA_UNIT_FT2, AREA_UNIT_M2, AREA_UNIT_CM2
 
 
 SENSOR_TYPE_NODE_PRESSURE          = 1
@@ -23,16 +26,6 @@ SENSOR_TYPE_LINK_BULK_SPECIES      = 10
 SENSOR_TYPE_SURFACE_SPECIES        = 11
 SENSOR_TYPE_PUMP_EFFICIENCY        = 12
 SENSOR_TYPE_PUMP_ENERGYCONSUMPTION = 13
-
-AREA_UNIT_FT2 = 1
-AREA_UNIT_M2 = 2
-AREA_UNIT_CM2 = 3
-MASS_UNIT_MG = 4
-MASS_UNIT_UG = 5
-MASS_UNIT_MOL = 6
-MASS_UNIT_MMOL = 7
-TIME_UNIT_HRS = 8
-MASS_UNIT_CUSTOM = 9
 
 
 def valid_sensor_types() -> str:
@@ -52,267 +45,6 @@ def valid_sensor_types() -> str:
         f"{SENSOR_TYPE_PUMP_EFFICIENCY} (Pump Efficiency), "
         f"{SENSOR_TYPE_PUMP_ENERGYCONSUMPTION} (Pump Energy Consumption)"
     )
-
-
-def areaunit_to_id(unit_desc: str) -> int:
-    """
-    Converts a given area units string to the corresponding ID.
-
-    Parameters
-    ----------
-    unit_desc : `str`
-        Area units string.
-
-    Returns
-    -------
-    `int`
-        Corresponding area unit ID.
-    """
-    return {"FT2": AREA_UNIT_FT2,
-            "M2": AREA_UNIT_M2,
-            "CM2": AREA_UNIT_CM2}[unit_desc]
-
-
-def massunit_to_id(unit_desc: str) -> int:
-    """
-    Converts a given mass units string to the corresponding ID.
-
-    Parameters
-    ----------
-    unit_desc : `str`
-        Mass units string.
-
-    Returns
-    -------
-    `int`
-        Corresponding mass unit ID.
-    """
-    mass_unit_dict = {"MG": MASS_UNIT_MG,
-                      "UG": MASS_UNIT_UG,
-                      "MOL": MASS_UNIT_MOL,
-                      "MMOL": MASS_UNIT_MMOL}
-
-    if unit_desc in mass_unit_dict:
-        return mass_unit_dict[unit_desc]
-    else:
-        return MASS_UNIT_CUSTOM
-
-
-def qualityunit_to_id(unit_desc: str) -> int:
-    """
-    Converts a given measurement unit description to the corresponding mass unit ID.
-
-    Parameters
-    ----------
-    unit_desc : `str`
-        Mass unit.
-
-    Returns
-    -------
-    `int`
-        Mass unit ID.
-
-        Will be either None (if no water quality analysis was set up) or
-        one of the following constants:
-
-            - MASS_UNIT_MG  = 4   (mg/L)
-            - MASS_UNIT_UG  = 5   (ug/L)
-            - TIME_UNIT_HRS = 8  (hrs)
-    """
-    if unit_desc == "mg/L":
-        return MASS_UNIT_MG
-    elif unit_desc == "ug/L":
-        return MASS_UNIT_UG
-    elif unit_desc == "hrs":
-        return TIME_UNIT_HRS
-    else:
-        return None
-
-
-def massunit_to_str(unit_id: int) -> str:
-    """
-    Converts a given mass unit ID to the corresponding description.
-
-    Parameters
-    ----------
-    unit_id : `int`
-        ID of the mass unit.
-
-        Must be one of the following constant:
-
-            - MASS_UNIT_MG     = 4
-            - MASS_UNIT_UG     = 5
-            - MASS_UNIT_MOL    = 6
-            - MASS_UNIT_MMOL   = 7
-            - MASS_UNIT_CUSTOM = 9
-
-    Returns
-    -------
-    `str`
-        Mass unit description.
-    """
-    if unit_id is None:
-        return ""
-    elif unit_id == MASS_UNIT_MG:
-        return "MG"
-    elif unit_id == MASS_UNIT_UG:
-        return "UG"
-    elif unit_id == MASS_UNIT_MOL:
-        return "MOL"
-    elif unit_id == MASS_UNIT_MMOL:
-        return "MMOL"
-    elif unit_id == MASS_UNIT_CUSTOM:
-        return "CUSTOM UNIT"
-    else:
-        raise ValueError(f"Unknown mass unit ID '{unit_id}'")
-
-
-def flowunit_to_str(unit_id: int) -> str:
-    """
-    Converts a given flow unit ID to the corresponding description.
-
-    Parameters
-    ----------
-    unit_id : `int`
-        ID of the flow unit.
-
-        Must be one of the following EPANET constants:
-
-            - EN_CFS  = 0 (cubic foot/sec)
-            - EN_GPM  = 1 (gal/min)
-            - EN_MGD  = 2 (Million gal/day)
-            - EN_IMGD = 3 (Imperial MGD)
-            - EN_AFD  = 4 (ac-foot/day)
-            - EN_LPS  = 5 (liter/sec)
-            - EN_LPM  = 6 (liter/min)
-            - EN_MLD  = 7 (Megaliter/day)
-            - EN_CMH  = 8 (cubic meter/hr)
-            - EN_CMD  = 9 (cubic meter/day)
-
-    Returns
-    -------
-    `str`
-        Flow unit description.
-    """
-    if unit_id is None:
-        return ""
-    elif unit_id == EpanetConstants.EN_CFS:
-        return "cubic foot/sec"
-    elif unit_id == EpanetConstants.EN_GPM:
-        return "gal/min"
-    elif unit_id == EpanetConstants.EN_MGD:
-        return "Million gal/day"
-    elif unit_id == EpanetConstants.EN_IMGD:
-        return "Imperial MGD"
-    elif unit_id == EpanetConstants.EN_AFD:
-        return "ac-foot/day"
-    elif unit_id == EpanetConstants.EN_LPS:
-        return "liter/sec"
-    elif unit_id == EpanetConstants.EN_LPM:
-        return "liter/min"
-    elif unit_id == EpanetConstants.EN_MLD:
-        return "Megaliter/day"
-    elif unit_id == EpanetConstants.EN_CMH:
-        return "cubic meter/hr"
-    elif unit_id == EpanetConstants.EN_CMD:
-        return "cubic meter/day"
-    else:
-        raise ValueError(f"Unknown unit ID '{unit_id}'")
-
-
-def qualityunit_to_str(unit_id: int) -> str:
-    """
-    Converts a given quality measurement unit ID to the corresponding description.
-
-    Parameters
-    ----------
-    unit_id : `int`
-        ID of the quality unit.
-
-        Must be one of the following constants:
-
-            - MASS_UNIT_MG  = 4  (mg/L)
-            - MASS_UNIT_UG  = 5  (ug/L)
-            - TIME_UNIT_HRS = 8  (hrs)
-
-    Returns
-    -------
-    `str`
-        Mass unit description.
-    """
-    if unit_id is None:
-        return ""
-    elif unit_id == MASS_UNIT_MG:
-        return "mg/L"
-    elif unit_id == MASS_UNIT_UG:
-        return "ug/L"
-    elif unit_id == TIME_UNIT_HRS:
-        return "hrs"
-    else:
-        raise ValueError(f"Unknown unit ID '{unit_id}'")
-
-
-def areaunit_to_str(unit_id: int) -> str:
-    """
-    Converts a given area measurement unit ID to the corresponding description.
-
-    Parameters
-    ----------
-    unit_id : `int`
-        ID of the area unit.
-
-        Must be one of the following constants:
-
-            - AREA_UNIT_FT2 = 1
-            - AREA_UNIT_M2  = 2
-            - AREA_UNIT_CM2 = 3
-
-    Returns
-    -------
-    `str`
-        Area unit description.
-    """
-    if unit_id is None:
-        return None
-    elif unit_id == AREA_UNIT_FT2:
-        return "FT2"
-    elif unit_id == AREA_UNIT_M2:
-        return "M2"
-    elif unit_id == AREA_UNIT_CM2:
-        return "CM2"
-    else:
-        raise ValueError(f"Unknown unit ID '{unit_id}'")
-
-
-def is_flowunit_simetric(unit_id: int) -> bool:
-    """
-    Checks if a given flow unit belongs to SI metric units.
-
-    Parameters
-    ----------
-    unit_id : `int`
-        ID of the flow unit.
-
-        Must be one of the following EPANET constants:
-
-            - EN_CFS  = 0 (cubic foot/sec)
-            - EN_GPM  = 1 (gal/min)
-            - EN_MGD  = 2 (Million gal/day)
-            - EN_IMGD = 3 (Imperial MGD)
-            - EN_AFD  = 4 (ac-foot/day)
-            - EN_LPS  = 5 (liter/sec)
-            - EN_LPM  = 6 (liter/min)
-            - EN_MLD  = 7 (Megaliter/day)
-            - EN_CMH  = 8 (cubic meter/hr)
-            - EN_CMD  = 9 (cubic meter/day)
-
-    Returns
-    -------
-    `bool`
-        True if the fiven unit is a SI metric unit, False otherwise.
-    """
-    return unit_id in [EpanetConstants.EN_LPS, EpanetConstants.EN_LPM, EpanetConstants.EN_MLD,
-                       EpanetConstants.EN_CMH, EpanetConstants.EN_CMD]
 
 
 @serializable(SENSOR_CONFIG_ID, ".epytflow_sensor_config")
@@ -446,21 +178,33 @@ class SensorConfig(JsonSerializable):
 
         The default is None.
     flow_unit : `int`
-        Specifies the flow units and consequently all other hydraulic units
-        (US CUSTOMARY or SI METRIC) as well.
+        Specifies the flow units and consequently many other hydraulic units
+        (US CUSTOMARY or SI METRIC) as well, except the pressure units which must be
+        specified separately.
 
         Must be one of the following EPANET constants:
 
-            - EN_CFS = 0 (cubic foot/sec)
-            - EN_GPM = 1 (gal/min)
-            - EN_MGD = 2 (Million gal/day)
+            - EN_CFS = 0  (cubic foot/sec)
+            - EN_GPM = 1  (gal/min)
+            - EN_MGD = 2  (Million gal/day)
             - EN_IMGD = 3 (Imperial MGD)
-            - EN_AFD = 4 (ac-foot/day)
-            - EN_LPS = 5 (liter/sec)
-            - EN_LPM = 6 (liter/min)
-            - EN_MLD = 7 (Megaliter/day)
-            - EN_CMH = 8 (cubic meter/hr)
-            - EN_CMD = 9 (cubic meter/day)
+            - EN_AFD = 4  (ac-foot/day)
+            - EN_LPS = 5  (liter/sec)
+            - EN_LPM = 6  (liter/min)
+            - EN_MLD = 7  (Megaliter/day)
+            - EN_CMH = 8  (cubic meter/hr)
+            - EN_CMD = 9  (cubic meter/day)
+            - EN_CMS = 10 (cubic meter/sec)
+    pressure_unit : `int`
+        Specifies the pressure units.
+
+        Must be one of the following EPANET constants:
+
+            - EN_PSI    = 0 (Pounds per square inch)
+            - EN_KPA    = 1 (Kilopascals)
+            - EN_METERS = 2 (Meters)
+            - EN_BAR    = 3 (Bar)
+            - EN_FEET   = 4 (Feet)
     quality_unit : `str`, optional
         Measurement unit (in a basic quality analysis) -- only relevant
         if basic water quality is enabled.
@@ -503,7 +247,7 @@ class SensorConfig(JsonSerializable):
     """
     def __init__(self, nodes: list[str], links: list[str], valves: list[str], pumps: list[str],
                  tanks: list[str], bulk_species: list[str], surface_species: list[str],
-                 flow_unit: int,
+                 flow_unit: int, pressure_unit: int,
                  sensor_ordering: list[int] = None,
                  pressure_sensors: list[str] = [],
                  flow_sensors: list[str] = [],
@@ -750,8 +494,14 @@ class SensorConfig(JsonSerializable):
         if not isinstance(flow_unit, int):
             raise TypeError("'flow_unit' must be a an instance of 'int' " +
                             f"but not of '{type(flow_unit)}'")
-        if flow_unit not in range(10):
+        if flow_unit not in range(11):
             raise ValueError("Invalid value of 'flow_unit'")
+
+        if not isinstance(pressure_unit, int):
+            raise TypeError("'pressure_unit' must be a an instance of 'int' " +
+                            f"but not of '{type(pressure_unit)}'")
+        if pressure_unit not in range(5):
+            raise ValueError("Invalid value of 'pressure_unit'")
 
         if quality_unit is not None:
             if not isinstance(quality_unit, int):
@@ -814,6 +564,7 @@ class SensorConfig(JsonSerializable):
         self.__bulkspecies_id_to_idx = bulkspecies_id_to_idx
         self.__surfacespecies_id_to_idx = surfacespecies_id_to_idx
         self.__flow_unit = flow_unit
+        self.__pressure_unit = pressure_unit
         self.__quality_unit = quality_unit
         self.__bulk_species_mass_unit = bulk_species_mass_unit
         self.__surface_species_mass_unit = surface_species_mass_unit
@@ -847,6 +598,7 @@ class SensorConfig(JsonSerializable):
                             pumps=sensor_config.pumps,
                             tanks=sensor_config.tanks,
                             flow_unit=sensor_config.flow_unit,
+                            pressure_unit=sensor_config.pressure_unit,
                             quality_unit=sensor_config.quality_unit,
                             bulk_species=sensor_config.bulk_species,
                             surface_species=sensor_config.surface_species,
@@ -1492,21 +1244,22 @@ class SensorConfig(JsonSerializable):
     @property
     def flow_unit(self) -> int:
         """
-        Gets the flow units.
-        Note that this specifies all other hydraulic units as well.
+        Returns the flow units.
+        Note that this also specifies all other hydraulic units, except pressure.
 
         Will be one of the following EPANET constants:
 
-            - EN_CFS = 0 (cubic foot/sec)
-            - EN_GPM = 1 (gal/min)
-            - EN_MGD = 2 (Million gal/day)
+            - EN_CFS = 0  (cubic foot/sec)
+            - EN_GPM = 1  (gal/min)
+            - EN_MGD = 2  (Million gal/day)
             - EN_IMGD = 3 (Imperial MGD)
-            - EN_AFD = 4 (ac-foot/day)
-            - EN_LPS = 5 (liter/sec)
-            - EN_LPM = 6 (liter/min)
-            - EN_MLD = 7 (Megaliter/day)
-            - EN_CMH = 8 (cubic meter/hr)
-            - EN_CMD = 9 (cubic meter/day)
+            - EN_AFD = 4  (ac-foot/day)
+            - EN_LPS = 5  (liter/sec)
+            - EN_LPM = 6  (liter/min)
+            - EN_MLD = 7  (Megaliter/day)
+            - EN_CMH = 8  (cubic meter/hr)
+            - EN_CMD = 9  (cubic meter/day)
+            - EN_CMD = 10 (cubic meter/sec)
 
         Returns
         -------
@@ -1514,6 +1267,26 @@ class SensorConfig(JsonSerializable):
             Flow unit ID.
         """
         return self.__flow_unit
+
+    @property
+    def pressure_unit(self) -> int:
+        """
+        Returns the pressure units.
+
+        Will be one of the following EPANET constants:
+
+            - EN_PSI    = 0 (Pounds per square inch)
+            - EN_KPA    = 1 (Kilopascals)
+            - EN_METERS = 2 (Meters)
+            - EN_BAR    = 3 (Bar)
+            - EN_FEET   = 4 (Feet)
+
+        Returns
+        -------
+        `int`
+            Pressure unit ID.
+        """
+        return self.__pressure_unit
 
     @property
     def quality_unit(self) -> int:
@@ -2028,6 +1801,7 @@ class SensorConfig(JsonSerializable):
                 "bulkspecies_id_to_idx": self.__bulkspecies_id_to_idx,
                 "surfacespecies_id_to_idx": self.__surfacespecies_id_to_idx,
                 "flow_unit": self.__flow_unit,
+                "pressure_unit": self.__pressure_unit,
                 "quality_unit": self.__quality_unit,
                 "bulk_species_mass_unit": self.__bulk_species_mass_unit,
                 "surface_species_mass_unit": self.__surface_species_mass_unit,
@@ -2059,6 +1833,7 @@ class SensorConfig(JsonSerializable):
             and self.__bulk_species_link_sensors == other.bulk_species_link_sensors \
             and self.__surface_species_sensors == other.surface_species_sensors \
             and self.__flow_unit == other.flow_unit \
+            and self.__pressure_unit == other.pressure_unit \
             and self.__quality_unit == other.quality_unit \
             and self.__bulk_species_mass_unit == other.bulk_species_mass_unit \
             and self.__surface_species_mass_unit == other.surface_species_mass_unit \
@@ -2094,6 +1869,7 @@ class SensorConfig(JsonSerializable):
             f"bulk_species_link_sensors: {self.__bulk_species_link_sensors} " +\
             f"surface_species_sensors: {self.__surface_species_sensors} " +\
             f"flow_unit: {flowunit_to_str(self.__flow_unit)} " +\
+            f"pressure_unit: {pressureunit_to_str(self.__pressure_unit)} " +\
             f"quality_unit: {qualityunit_to_str(self.__quality_unit)} " +\
             "bulk_species_mass_unit: " +\
             f"{list(map(massunit_to_str, self.__bulk_species_mass_unit))} " +\
@@ -2170,7 +1946,8 @@ class SensorConfig(JsonSerializable):
         Applies the sensor configuration to a set of raw simulation results -- i.e. computes
         the sensor readings as an array.
 
-        Columns (i.e. sensor readings) are ordered as follows:
+        Columns (i.e. sensor readings) are ordered as according to sensor_ordering.
+        If not changed, the following default order applies:
 
             1. Pressures
             2. Flows

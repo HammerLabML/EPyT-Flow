@@ -8,8 +8,9 @@ from scipy.io import savemat
 import pandas as pd
 
 from .scada_data import ScadaData
-from ..sensor_config import SensorConfig, massunit_to_str, flowunit_to_str, qualityunit_to_str, \
-    is_flowunit_simetric
+from ..sensor_config import SensorConfig
+from ...utils import massunit_to_str, flowunit_to_str, qualityunit_to_str, \
+    is_flowunit_simetric, pressureunit_to_str
 
 
 class ScadaDataExport():
@@ -111,10 +112,7 @@ class ScadaDataExport():
 
         def __get_sensor_unit(sensor_type):
             if sensor_type == "pressure":
-                if not is_flowunit_simetric(scada_data.sensor_config.flow_unit):
-                    return "psi"
-                else:
-                    return "meter"
+                return pressureunit_to_str(scada_data.sensor_config.pressure_unit)
             elif sensor_type == "flow" or sensor_type == "demand":
                 return flowunit_to_str(scada_data.sensor_config.flow_unit)
             elif sensor_type == "quality_node" or sensor_type == "quality_link":

@@ -20,8 +20,7 @@ from tqdm import tqdm
 from epanet_plus import EPyT, EpanetConstants
 
 from .scenario_config import ScenarioConfig
-from .sensor_config import SensorConfig, areaunit_to_id, massunit_to_id, qualityunit_to_id, \
-    qualityunit_to_str, MASS_UNIT_MG, \
+from .sensor_config import SensorConfig, \
     SENSOR_TYPE_LINK_FLOW, SENSOR_TYPE_LINK_QUALITY, SENSOR_TYPE_NODE_DEMAND, \
     SENSOR_TYPE_NODE_PRESSURE, SENSOR_TYPE_NODE_QUALITY, \
     SENSOR_TYPE_PUMP_STATE, SENSOR_TYPE_PUMP_EFFICIENCY, SENSOR_TYPE_PUMP_ENERGYCONSUMPTION, \
@@ -33,7 +32,8 @@ from .events import SystemEvent, Leakage, ActuatorEvent, SensorFault, SensorRead
 from .scada import ScadaData, CustomControlModule, SimpleControlModule, ComplexControlModule, \
     RuleCondition, RuleAction, ActuatorConstants, EN_R_ACTION_SETTING, RULESTATUS
 from ..topology import NetworkTopology, UNITS_SIMETRIC, UNITS_USCUSTOM
-from ..utils import get_temp_folder
+from ..utils import get_temp_folder, areaunit_to_id, massunit_to_id, qualityunit_to_id, \
+    qualityunit_to_str, MASS_UNIT_MG
 
 
 class ScenarioSimulator():
@@ -192,7 +192,8 @@ class ScenarioSimulator():
                                  valve_id_to_idx: dict = None, pump_id_to_idx: dict = None,
                                  tank_id_to_idx: dict = None, bulkspecies_id_to_idx: dict = None,
                                  surfacespecies_id_to_idx: dict = None) -> SensorConfig:
-        flow_unit = self.epanet_api.getflowunits()
+        flow_unit = self.get_flow_units()
+        pressure_unit = self.get_pressure_units()
         quality_unit = qualityunit_to_id(self.epanet_api.get_quality_info()["chemUnits"])
         bulk_species = []
         surface_species = []
@@ -220,6 +221,7 @@ class ScenarioSimulator():
                             bulk_species=bulk_species,
                             surface_species=surface_species,
                             flow_unit=flow_unit,
+                            pressure_unit=pressure_unit,
                             quality_unit=quality_unit,
                             bulk_species_mass_unit=bulk_species_mass_unit,
                             surface_species_mass_unit=surface_species_mass_unit,
@@ -805,6 +807,25 @@ class ScenarioSimulator():
         """
         return self.epanet_api.getflowunits()
 
+    def get_pressure_units(self) -> int:
+        """
+        Returns the current pressure units.
+
+        Will be one of the following EPANET constants:
+
+            - EN_PSI    = 0 (Pounds per square inch)
+            - EN_KPA    = 1 (Kilopascals)
+            - EN_METERS = 2 (Meters)
+            - EN_BAR    = 3 (Bar)
+            - EN_FEET   = 4 (Feet)
+
+        Returns
+        -------
+        `int`
+            Pressure units.
+        """
+        return int(self.epanet_api.getoption(EpanetConstants.EN_PRESS_UNITS))
+
     def get_units_category(self) -> int:
         """
         Gets the category of units -- i.e. US Customary or SI Metric units.
@@ -933,6 +954,7 @@ class ScenarioSimulator():
                           "reporting_time_step": self.get_reporting_time_step(),
                           "simulation_duration": self.get_simulation_duration(),
                           "flow_units_id": self.get_flow_units(),
+                          "pressure_units_id": self.get_pressure_units(),
                           "quality_model": self.get_quality_model(),
                           "demand_model": self.get_demand_model()}
 
@@ -1149,7 +1171,8 @@ class ScenarioSimulator():
 
         return NetworkTopology(f_inp=self.f_inp_in, nodes=nodes, links=links, pumps=pumps,
                                valves=valves, curves=curves, patterns=patterns,
-                               units=self.get_units_category())
+                               flow_units=self.get_flow_units(),
+                               pressure_units=self.get_pressure_units())
 
     def plot_topology(self, export_to_file: str = None) -> None:
         """
@@ -3003,7 +3026,8 @@ class ScenarioSimulator():
                                hydraulic_time_step: int = None, quality_time_step: int = None,
                                advanced_quality_time_step: int = None,
                                reporting_time_step: int = None, reporting_time_start: int = None,
-                               flow_units_id: int = None, quality_model: dict = None) -> None:
+                               flow_units_id: int = None, pressure_units_id: int = None,
+                               quality_model: dict = None) -> None:
         """
         Sets some general parameters.
 
@@ -3070,8 +3094,24 @@ class ScenarioSimulator():
                 - EN_MLD  = 7  (Megaliter/day)
                 - EN_CMH  = 8  (cubic meter/hr)
                 - EN_CMD  = 9  (cubic meter/day)
+                - EN_CMS  = 10 (cubic meters per second)
 
             The default is None.
+
+        pressure_units_id : `int`, optional
+            Specifies the pressure units -- i.e. all pressures will be reported in these units.
+            If None, the units from the .inp file will be used.
+
+            Must be one of the following EPANET constants:
+
+                - EN_PSI    = 0 (Pounds per square inch)
+                - EN_KPA    = 1 (Kilopascals)
+                - EN_METERS = 2 (Meters)
+                - EN_BAR    = 3 (Bar)
+                - EN_FEET   = 4 (Feet)
+
+            The default is None.
+
         quality_model : `dict`, optional
             Specifies the quality model -- the dictionary must contain,
             "type", "chemical_name", "chemical_units", and "trace_node_id", of the
@@ -3105,8 +3145,20 @@ class ScenarioSimulator():
                 self.epanet_api.setflowunits(flow_units_id)
             elif flow_units_id == EpanetConstants.EN_CMD:
                 self.epanet_api.setflowunits(flow_units_id)
+            elif flow_units_id == EpanetConstants.EN_CMS:
+                self.epanet_api.setflowunits(flow_units_id)
             else:
                 raise ValueError(f"Unknown flow units '{flow_units_id}'")
+
+        if pressure_units_id is not None:
+            if pressure_units_id == EpanetConstants.EN_PSI or \
+                    pressure_units_id == EpanetConstants.EN_METERS or \
+                    pressure_units_id == EpanetConstants.EN_KPA or \
+                    pressure_units_id == EpanetConstants.EN_FEET or \
+                    pressure_units_id == EpanetConstants.EN_BAR:
+                self.epanet_api.setoption(EpanetConstants.EN_PRESS_UNITS, pressure_units_id)
+            else:
+                raise ValueError(f"Unknown pressure units '{pressure_units_id}'")
 
         if demand_model is not None:
             self.epanet_api.set_demand_model(demand_model["type"], demand_model["pressure_min"],

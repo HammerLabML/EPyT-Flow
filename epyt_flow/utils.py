@@ -18,7 +18,382 @@ import matplotlib.pyplot as plt
 from epanet_plus import EpanetConstants
 
 
+AREA_UNIT_FT2 = 1
+AREA_UNIT_M2 = 2
+AREA_UNIT_CM2 = 3
+MASS_UNIT_MG = 4
+MASS_UNIT_UG = 5
+MASS_UNIT_MOL = 6
+MASS_UNIT_MMOL = 7
+TIME_UNIT_HRS = 8
+MASS_UNIT_CUSTOM = 9
+
+
+def pressureunit_to_str(unit_id: int) -> str:
+    """
+    Converts a given pressure unit ID to the corresponding description.
+
+    Parameters
+    ----------
+    unit_id : `int`
+        Pressure unit ID.
+
+        Must be one of the following EPANET constants:
+
+            - EN_PSI    = 0 (Pounds per square inch)
+            - EN_KPA    = 1 (Kilopascals)
+            - EN_METERS = 2 (Meters)
+            - EN_BAR    = 3 (Bar)
+            - EN_FEET   = 4 (Feet)
+
+    Returns
+    -------
+    `str`
+        Pressure unit description.
+    """
+    if unit_id is None:
+        return ""
+    elif unit_id == EpanetConstants.EN_PSI:
+        return "psi"
+    elif unit_id == EpanetConstants.EN_KPA:
+        return "kilopascal"
+    elif unit_id == EpanetConstants.EN_METERS:
+        return "meter"
+    elif unit_id == EpanetConstants.EN_BAR:
+        return "bar"
+    elif unit_id == EpanetConstants.EN_FEET:
+        return "feet"
+    else:
+        raise ValueError(f"Unknown unit ID '{unit_id}'")
+
+
+def flowunit_to_str(unit_id: int) -> str:
+    """
+    Converts a given flow unit ID to the corresponding description.
+
+    Parameters
+    ----------
+    unit_id : `int`
+        Flow unit ID.
+
+        Must be one of the following EPANET constants:
+
+            - EN_CFS  = 0  (cubic foot/sec)
+            - EN_GPM  = 1  (gal/min)
+            - EN_MGD  = 2  (Million gal/day)
+            - EN_IMGD = 3  (Imperial MGD)
+            - EN_AFD  = 4  (ac-foot/day)
+            - EN_LPS  = 5  (liter/sec)
+            - EN_LPM  = 6  (liter/min)
+            - EN_MLD  = 7  (Megaliter/day)
+            - EN_CMH  = 8  (cubic meter/hr)
+            - EN_CMD  = 9  (cubic meter/day)
+            - EN_CMS  = 10 (cubic meter/sec)
+
+    Returns
+    -------
+    `str`
+        Flow unit description.
+    """
+    if unit_id is None:
+        return ""
+    elif unit_id == EpanetConstants.EN_CFS:
+        return "cubic foot/sec"
+    elif unit_id == EpanetConstants.EN_GPM:
+        return "gal/min"
+    elif unit_id == EpanetConstants.EN_MGD:
+        return "Million gal/day"
+    elif unit_id == EpanetConstants.EN_IMGD:
+        return "Imperial MGD"
+    elif unit_id == EpanetConstants.EN_AFD:
+        return "ac-foot/day"
+    elif unit_id == EpanetConstants.EN_LPS:
+        return "liter/sec"
+    elif unit_id == EpanetConstants.EN_LPM:
+        return "liter/min"
+    elif unit_id == EpanetConstants.EN_MLD:
+        return "Megaliter/day"
+    elif unit_id == EpanetConstants.EN_CMH:
+        return "cubic meter/hr"
+    elif unit_id == EpanetConstants.EN_CMD:
+        return "cubic meter/day"
+    elif unit_id == EpanetConstants.EN_CMS:
+        return "cubic meter/sec"
+    else:
+        raise ValueError(f"Unknown unit ID '{unit_id}'")
+
+
+def areaunit_to_id(unit_desc: str) -> int:
+    """
+    Converts a given area units string to the corresponding ID.
+
+    Parameters
+    ----------
+    unit_desc : `str`
+        Area units string.
+
+    Returns
+    -------
+    `int`
+        Corresponding area unit ID.
+    """
+    return {"FT2": AREA_UNIT_FT2,
+            "M2": AREA_UNIT_M2,
+            "CM2": AREA_UNIT_CM2}[unit_desc]
+
+
+def massunit_to_id(unit_desc: str) -> int:
+    """
+    Converts a given mass units string to the corresponding ID.
+
+    Parameters
+    ----------
+    unit_desc : `str`
+        Mass units string.
+
+    Returns
+    -------
+    `int`
+        Corresponding mass unit ID.
+    """
+    mass_unit_dict = {"MG": MASS_UNIT_MG,
+                      "UG": MASS_UNIT_UG,
+                      "MOL": MASS_UNIT_MOL,
+                      "MMOL": MASS_UNIT_MMOL}
+
+    if unit_desc in mass_unit_dict:
+        return mass_unit_dict[unit_desc]
+    else:
+        return MASS_UNIT_CUSTOM
+
+
+def qualityunit_to_id(unit_desc: str) -> int:
+    """
+    Converts a given measurement unit description to the corresponding mass unit ID.
+
+    Parameters
+    ----------
+    unit_desc : `str`
+        Mass unit.
+
+    Returns
+    -------
+    `int`
+        Mass unit ID.
+
+        Will be either None (if no water quality analysis was set up) or
+        one of the following constants:
+
+            - MASS_UNIT_MG  = 4   (mg/L)
+            - MASS_UNIT_UG  = 5   (ug/L)
+            - TIME_UNIT_HRS = 8  (hrs)
+    """
+    if unit_desc == "mg/L":
+        return MASS_UNIT_MG
+    elif unit_desc == "ug/L":
+        return MASS_UNIT_UG
+    elif unit_desc == "hrs":
+        return TIME_UNIT_HRS
+    else:
+        return None
+
+
+def massunit_to_str(unit_id: int) -> str:
+    """
+    Converts a given mass unit ID to the corresponding description.
+
+    Parameters
+    ----------
+    unit_id : `int`
+        ID of the mass unit.
+
+        Must be one of the following constant:
+
+            - MASS_UNIT_MG     = 4
+            - MASS_UNIT_UG     = 5
+            - MASS_UNIT_MOL    = 6
+            - MASS_UNIT_MMOL   = 7
+            - MASS_UNIT_CUSTOM = 9
+
+    Returns
+    -------
+    `str`
+        Mass unit description.
+    """
+    if unit_id is None:
+        return ""
+    elif unit_id == MASS_UNIT_MG:
+        return "MG"
+    elif unit_id == MASS_UNIT_UG:
+        return "UG"
+    elif unit_id == MASS_UNIT_MOL:
+        return "MOL"
+    elif unit_id == MASS_UNIT_MMOL:
+        return "MMOL"
+    elif unit_id == MASS_UNIT_CUSTOM:
+        return "CUSTOM UNIT"
+    else:
+        raise ValueError(f"Unknown mass unit ID '{unit_id}'")
+
+
+def qualityunit_to_str(unit_id: int) -> str:
+    """
+    Converts a given quality measurement unit ID to the corresponding description.
+
+    Parameters
+    ----------
+    unit_id : `int`
+        ID of the quality unit.
+
+        Must be one of the following constants:
+
+            - MASS_UNIT_MG  = 4  (mg/L)
+            - MASS_UNIT_UG  = 5  (ug/L)
+            - TIME_UNIT_HRS = 8  (hrs)
+
+    Returns
+    -------
+    `str`
+        Mass unit description.
+    """
+    if unit_id is None:
+        return ""
+    elif unit_id == MASS_UNIT_MG:
+        return "mg/L"
+    elif unit_id == MASS_UNIT_UG:
+        return "ug/L"
+    elif unit_id == TIME_UNIT_HRS:
+        return "hrs"
+    else:
+        raise ValueError(f"Unknown unit ID '{unit_id}'")
+
+
+def areaunit_to_str(unit_id: int) -> str:
+    """
+    Converts a given area measurement unit ID to the corresponding description.
+
+    Parameters
+    ----------
+    unit_id : `int`
+        ID of the area unit.
+
+        Must be one of the following constants:
+
+            - AREA_UNIT_FT2 = 1
+            - AREA_UNIT_M2  = 2
+            - AREA_UNIT_CM2 = 3
+
+    Returns
+    -------
+    `str`
+        Area unit description.
+    """
+    if unit_id is None:
+        return None
+    elif unit_id == AREA_UNIT_FT2:
+        return "FT2"
+    elif unit_id == AREA_UNIT_M2:
+        return "M2"
+    elif unit_id == AREA_UNIT_CM2:
+        return "CM2"
+    else:
+        raise ValueError(f"Unknown unit ID '{unit_id}'")
+
+
+def is_flowunit_simetric(unit_id: int) -> bool:
+    """
+    Checks if a given flow unit belongs to SI metric units.
+
+    Parameters
+    ----------
+    unit_id : `int`
+        ID of the flow unit.
+
+        Must be one of the following EPANET constants:
+
+            - EN_CFS  = 0  (cubic foot/sec)
+            - EN_GPM  = 1  (gal/min)
+            - EN_MGD  = 2  (Million gal/day)
+            - EN_IMGD = 3  (Imperial MGD)
+            - EN_AFD  = 4  (ac-foot/day)
+            - EN_LPS  = 5  (liter/sec)
+            - EN_LPM  = 6  (liter/min)
+            - EN_MLD  = 7  (Megaliter/day)
+            - EN_CMH  = 8  (cubic meter/hr)
+            - EN_CMD  = 9  (cubic meter/day)
+            - EN_CMS  = 10 (cubic meter/sec)
+
+    Returns
+    -------
+    `bool`
+        True if the fiven unit is a SI metric unit, False otherwise.
+    """
+    return unit_id in [EpanetConstants.EN_LPS, EpanetConstants.EN_LPM, EpanetConstants.EN_MLD,
+                       EpanetConstants.EN_CMH, EpanetConstants.EN_CMD, EpanetConstants.EN_CMS]
+
+
+def _get_pressure_convert_factor(new_unit_id: int, old_unit: int) -> float:
+    if new_unit_id == old_unit:
+        return 1.
+
+    if new_unit_id == EpanetConstants.EN_BAR:
+        if old_unit == EpanetConstants.EN_PSI:
+            return .0689476
+        elif old_unit == EpanetConstants.EN_METERS:
+            return .09804139432
+        elif old_unit == EpanetConstants.EN_FEET:
+            return .029883016988736
+        elif old_unit == EpanetConstants.EN_KPA:
+            return .01
+
+    elif new_unit_id == EpanetConstants.EN_KPA:
+        if old_unit == EpanetConstants.EN_PSI:
+            return 6.894744825494
+        elif old_unit == EpanetConstants.EN_METERS:
+            return 9.804139432
+        elif old_unit == EpanetConstants.EN_FEET:
+            return 2.9890669
+        elif old_unit == EpanetConstants.EN_BAR:
+            return 100.
+
+    elif new_unit_id == EpanetConstants.EN_FEET:
+        if old_unit == EpanetConstants.EN_PSI:
+            return 2.3072493927233
+        elif old_unit == EpanetConstants.EN_METERS:
+            return 3.2808398950131
+        elif old_unit == EpanetConstants.EN_KPA:
+            return .33455256555148
+        elif old_unit == EpanetConstants.EN_BAR:
+            return 33.455256555148
+
+    elif new_unit_id == EpanetConstants.EN_PSI:
+        if old_unit == EpanetConstants.EN_KPA:
+            return .14503773773020923
+        elif old_unit == EpanetConstants.EN_METERS:
+            return 1.4219702063247
+        elif old_unit == EpanetConstants.EN_FEET:
+            return .43341651888775
+        elif old_unit == EpanetConstants.EN_BAR:
+            return 14.5038
+
+    elif new_unit_id == EpanetConstants.EN_METERS:
+        if old_unit == EpanetConstants.EN_PSI:
+            return .70325
+        elif old_unit == EpanetConstants.EN_KPA:
+            return .10199773339984
+        elif old_unit == EpanetConstants.EN_FEET:
+            return .3048
+        elif old_unit == EpanetConstants.EN_BAR:
+            return 10.199773339984
+
+    else:
+        raise ValueError("Invalid 'new_unit_id'")
+
+
 def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
+    if new_unit_id == old_unit:
+        return 1.
+
     if new_unit_id == EpanetConstants.EN_CFS:
         if old_unit == EpanetConstants.EN_GPM:
             return .0022280093
@@ -38,6 +413,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return .0098096296
         elif old_unit == EpanetConstants.EN_CMD:
             return .0004087346
+
     elif new_unit_id == EpanetConstants.EN_GPM:
         if old_unit == EpanetConstants.EN_CFS:
             return 448.8325660485
@@ -57,6 +433,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return 4.4028675393
         elif old_unit == EpanetConstants.EN_CMD:
             return .1834528141
+
     elif new_unit_id == EpanetConstants.EN_MGD:
         if old_unit == EpanetConstants.EN_CFS:
             return .6463168831
@@ -76,6 +453,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return .0063401293
         elif old_unit == EpanetConstants.EN_CMD:
             return .0002641721
+
     elif new_unit_id == EpanetConstants.EN_IMGD:
         if old_unit == EpanetConstants.EN_CFS:
             return .5381713837
@@ -95,6 +473,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return .005279262
         elif old_unit == EpanetConstants.EN_CMD:
             return .0002199692
+
     elif new_unit_id == EpanetConstants.EN_AFD:
         if old_unit == EpanetConstants.EN_CFS:
             return 1.9834710744
@@ -114,6 +493,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return .0194571167
         elif old_unit == EpanetConstants.EN_CMD:
             return .0008107132
+
     elif new_unit_id == EpanetConstants.EN_LPS:
         if old_unit == EpanetConstants.EN_CFS:
             return 28.316846592
@@ -133,6 +513,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return .2777777778
         elif old_unit == EpanetConstants.EN_CMD:
             return .0115740741
+
     elif new_unit_id == EpanetConstants.EN_LPM:
         if old_unit == EpanetConstants.EN_CFS:
             return 1699.0107955
@@ -152,6 +533,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return 16.666666667
         elif old_unit == EpanetConstants.EN_CMD:
             return 0.6944444444
+
     elif new_unit_id == EpanetConstants.EN_MLD:
         if old_unit == EpanetConstants.EN_CFS:
             return 2.4465755456688
@@ -171,6 +553,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return .024
         elif old_unit == EpanetConstants.EN_CMD:
             return .00099999999999999
+
     elif new_unit_id == EpanetConstants.EN_CMH:
         if old_unit == EpanetConstants.EN_CFS:
             return 101.94064773
@@ -190,6 +573,7 @@ def _get_flow_convert_factor(new_unit_id: int, old_unit: int) -> float:
             return .227124707
         elif old_unit == EpanetConstants.EN_CMD:
             return 0.0416666667
+
     elif new_unit_id == EpanetConstants.EN_CMD:
         if old_unit == EpanetConstants.EN_CFS:
             return 2446.5755455

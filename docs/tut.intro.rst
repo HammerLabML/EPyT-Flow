@@ -70,8 +70,8 @@ note that pressure-driven analysis (PDA) is more robust in extreme situations bu
 specifying additiona parameters such as the minimum pressure and the pressure exponent.
 
 The units of measurement are set globally and are either in *US customary* or *SI metric*.
-The units are set by settings the flow units -- more details can be found in the
-`EPANET documents on units <https://epanet22.readthedocs.io/en/latest/back_matter.html#units-of-measurement>`_.
+The units are set by specifying the flow and pressure units -- more details can be found in the
+`EPANET documents on units <http://wateranalytics.org/EPANET/_units.html>`_.
 
 EPyT-Flow is based on EPANET and therefore uses a steady-state simulation of the hydraulics,
 on which the quality dynamics are computed. Details can be found in the
