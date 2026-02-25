@@ -53,4 +53,3 @@ def test_convert_unit():
 
         res2 = res.convert_units(flow_unit=EpanetConstants.EN_CFS)
         assert res != res2
-

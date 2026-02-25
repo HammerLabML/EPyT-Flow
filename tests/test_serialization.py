@@ -16,6 +16,7 @@ from .utils import get_temp_folder
 def test_sensorconfig():
     sensor_config = SensorConfig(nodes=["0", "1", "2"], links=["0", "1"],
                                  flow_unit=EpanetConstants.EN_GPM,
+                                 pressure_unit=EpanetConstants.EN_PSI,
                                  valves=[], pumps=[], tanks=[], pressure_sensors=["2"],
                                  bulk_species=[], surface_species=[])
     sensor_config_restored = SensorConfig.load(sensor_config.dump())
