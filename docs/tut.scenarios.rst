@@ -177,10 +177,9 @@ Low-level EPANET and EPANET-MSX Functions
 +++++++++++++++++++++++++++++++++++++++++
 
 Besides providing high-level functions for working with scenarios, EPyT-Flow also provides access
-to lower-level functions as provided by EPyT, EPANET, and EPANET-MSX.
-EPyT functions can be accessed through the attribute `epanet_api` of a
+to lower-level functions as provided by EPANET, and EPANET-MSX.
+Those functions can be accessed through the attribute `epanet_api` of a
 :class:`~epyt_flow.simulation.scenario_simulator.ScenarioSimulator` instance.
-Note that EPyT also provides access to all EPANET and EPANET-MSX functions.
 
 .. warning::
 
@@ -196,7 +195,7 @@ Example of manually setting the emitter coefficient of a node by calling an EPAN
     # Create scenario based in Net1
     with ScenarioSimulator(scenario_config=load_net1()) as sim:
         # Calling an EPANET function for setting the emitter coefficient of the first node to zero
-        sim.epanet_api.setNodeEmitterCoeff(1, 0.)
+        sim.epanet_api.setnodevalue(1, EpanetConstants.EN_EMITTER, 0.)
 
         # ....
 
@@ -205,21 +204,22 @@ Units of Measurements
 +++++++++++++++++++++
 
 The units if measurement are automatically derived from the .inp and .msx files.
-However, it is also possible to change some of those before the simulation is run and all
-measurement units can be changed afterwards by post-processing the SCADA data --
-see :ref:`here <scada_change_units>` for more information.
+However, it is also possible to change those before the simulation is run.
+In addition, all measurement units can be changed afterwards by post-processing
+the SCADA data -- see :ref:`here <scada_change_units>` for more information.
 
-The most convient way of changing/specifying the hydraulic units is by specifying the flow units
-when loading the .inp file -- note that the flow units specify all other hydraulic units as stated
-in the `EPANET documentation <https://epanet22.readthedocs.io/en/latest/back_matter.html>`_:
+The most convient way of changing/specifying the hydraulic units is by specifying the flow and pressure units
+when loading the .inp file -- note that the flow and pressure units specify all other hydraulic units:
 
 .. code-block:: python
 
     # Load Net1 with CMH (cubic meter per hour) as the flow unit
-    scenario_config = load_net1(flow_units_id=EpanetConstants.EN_CMH)
+    # and meters as the pressure unit
+    scenario_config = load_net1(flow_units_id=EpanetConstants.EN_CMH,
+                                pressure_units_id=EpanetConstants.EN_METERS)
 
 
-Alternatively, the flow units can be changed anytime by calling
+Alternatively, the flow and pressure units can be changed anytime by calling
 :func:`~epyt_flow.simulation.scenario_simulator.ScenarioSimulator.set_general_parameters` of a
 :class:`~epyt_flow.simulation.scenario_simulator.ScenarioSimulator` instance:
 
@@ -228,7 +228,9 @@ Alternatively, the flow units can be changed anytime by calling
     # Open/Create a new scenario based on the Hanoi network
     with ScenarioSimulator(f_inp="Hanoi.inp") as sim:
         # Change flow units to CMH (cubic meter per hour)
-        sim.set_general_parameters(flow_units_id=EpanetConstants.EN_CMH)
+        # and meters as the pressure unit
+        sim.set_general_parameters(flow_units_id=EpanetConstants.EN_CMH,
+                                   pressure_units_id=EpanetConstants.EN_METERS)
 
         # ...
 

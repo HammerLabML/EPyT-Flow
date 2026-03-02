@@ -13,7 +13,8 @@ from shapely.geometry import Point, LineString
 from epanet_plus import EpanetConstants, EPyT
 
 from .serialization import serializable, JsonSerializable, NETWORK_TOPOLOGY_ID
-from .utils import _get_flow_convert_factor
+from .utils import _get_flow_convert_factor, flowunit_to_str, pressureunit_to_str, \
+    is_flowunit_simetric
 
 
 UNITS_USCUSTOM = 0
@@ -73,13 +74,32 @@ class NetworkTopology(nx.Graph, JsonSerializable):
         All curves -- i.e. curve ID, and list of points.
     patterns : `dict[str, list[float]]`
         All time patterns -- i.e., pattern ID and list of multipliers.
-    units : `int`
-        Measurement units category -- i.e. US Customary or SI Metric.
+    flow_units : `int`
+        Flow units ID.
 
-        Must be one of the following constants:
+        Must be one of the following EPANET constants:
 
-            - UNITS_USCUSTOM = 0  (US Customary)
-            - UNITS_SIMETRIC = 1  (SI Metric)
+            - EN_CFS  = 0  (cubic foot/sec)
+            - EN_GPM  = 1  (gal/min)
+            - EN_MGD  = 2  (Million gal/day)
+            - EN_IMGD = 3  (Imperial MGD)
+            - EN_AFD  = 4  (ac-foot/day)
+            - EN_LPS  = 5  (liter/sec)
+            - EN_LPM  = 6  (liter/min)
+            - EN_MLD  = 7  (Megaliter/day)
+            - EN_CMH  = 8  (cubic meter/hr)
+            - EN_CMD  = 9  (cubic meter/day)
+            - EN_CMS  = 10 (cubic meter/sec)
+    pressure_units : `int`
+        Pressue unit ID.
+
+        Must be one of the following EPANET constants:
+
+            - EN_PSI    = 0 (Pounds per square inch)
+            - EN_KPA    = 1 (Kilopascals)
+            - EN_METERS = 2 (Meters)
+            - EN_BAR    = 3 (Bar)
+            - EN_FEET   = 4 (Feet)
     """
     def __init__(self, f_inp: str, nodes: list[tuple[str, dict]],
                  links: list[tuple[str, tuple[str, str], dict]],
@@ -87,7 +107,7 @@ class NetworkTopology(nx.Graph, JsonSerializable):
                  valves: dict,
                  curves: dict[str, tuple[int, list[tuple[float, float]]]],
                  patterns: dict[str, list[float]],
-                 units: int,
+                 flow_units: int, pressure_units: int,
                  **kwds):
         nx.Graph.__init__(self, name=f_inp, **kwds)
         JsonSerializable.__init__(self)
@@ -98,7 +118,8 @@ class NetworkTopology(nx.Graph, JsonSerializable):
         self.__valves = valves
         self.__curves = curves
         self.__patterns = patterns
-        self.__units = units
+        self.__flow_units = flow_units
+        self.__pressure_units = pressure_units
 
         for key in self.__curves.keys():    # Fix value types -- tuple gets converted to list when deserializing it
             self.__curves[key] = (self.__curves[key][0],
@@ -129,10 +150,8 @@ class NetworkTopology(nx.Graph, JsonSerializable):
             Path to the .inp file.
         """
         with EPyT(inp_file_in=inp_file_out, use_project=False) as epanet_api:
-            if self.units == UNITS_SIMETRIC:
-                epanet_api.setflowunits(EpanetConstants.EN_CMH)
-            else:
-                epanet_api.setflowunits(EpanetConstants.EN_GPM)
+            epanet_api.setflowunits(self.__flow_units)
+            epanet_api.setoption(EpanetConstants.EN_PRESS_UNITS, self.__pressure_units)
 
             for curve_id, (curve_type, curve_data) in self.__curves.items():
                 epanet_api.addcurve(curve_id)
@@ -252,49 +271,76 @@ class NetworkTopology(nx.Graph, JsonSerializable):
 
             epanet_api.saveinpfile(inp_file_out)
 
-    def convert_units(self, units: int) -> Any:
+    def convert_units(self, flow_units: int, pressure_units: int) -> Any:
         """
         Converts this instance to a :class:`~epyt_flow.topology.NetworkTopology` instance
-        where everything is measured in given measurement units category
-        (US Customary or SI Metric).
+        where everything is measured in given flow and pressure units.
 
         Parameters
         ----------
-        units : `int`
-            Measurement units category.
+        flow_units : `int`
+            Flow unit ID.
 
-            Must be one of the following constants:
+            Must be one of the following EPANET constants:
 
-                - UNITS_USCUSTOM = 0  (US Customary)
-                - UNITS_SIMETRIC = 1  (SI Metric)
+                - EN_CFS  = 0  (cubic foot/sec)
+                - EN_GPM  = 1  (gal/min)
+                - EN_MGD  = 2  (Million gal/day)
+                - EN_IMGD = 3  (Imperial MGD)
+                - EN_AFD  = 4  (ac-foot/day)
+                - EN_LPS  = 5  (liter/sec)
+                - EN_LPM  = 6  (liter/min)
+                - EN_MLD  = 7  (Megaliter/day)
+                - EN_CMH  = 8  (cubic meter/hr)
+                - EN_CMD  = 9  (cubic meter/day)
+                - EN_CMS  = 10 (cubic meter/sec)
+
+        pressure_units : `int`
+            Pressure unit ID.
+
+            Must be one of the following EPANET constants:
+
+                - EN_PSI    = 0 (Pounds per square inch)
+                - EN_KPA    = 1 (Kilopascals)
+                - EN_METERS = 2 (Meters)
+                - EN_BAR    = 3 (Bar)
+                - EN_FEET   = 4 (Feet)
 
         Returns
         -------
         :class:`~epyt_flow.topology.NetworkTopology`
             Network topology with the new measurements units.
         """
-        if self.__units is None:
+        if self.__flow_units is None or self.__pressure_units is None:
             raise ValueError("This instance does not contain any units!")
 
-        if not isinstance(units, int):
-            raise TypeError(f"'units' must be an instance of 'int' but not of '{type(units)}'")
-        if units not in [UNITS_SIMETRIC, UNITS_USCUSTOM]:
-            raise ValueError(f"Invalid units '{units}'")
+        if not isinstance(flow_units, int):
+            raise TypeError("'units' must be an instance of 'int' " +
+                            f"but not of '{type(flow_units)}'")
+        if flow_units not in range(11):
+            raise ValueError(f"Invalid units '{flow_units}'")
 
-        if units == self.__units:
+        if not isinstance(pressure_units, int):
+            raise TypeError("'pressure_units' must be an instance of 'int' " +
+                            f"but not of '{type(pressure_units)}'")
+        if pressure_units not in range(5):
+            raise ValueError(f"Invalid units '{pressure_units}'")
+
+        if flow_units == self.__flow_units and pressure_units == self.__pressure_units:
             warnings.warn("Units already set in this NetworkTopology instance -- nothing to do!")
             return deepcopy(self)
 
         # Get all data and convert units
-        psi_to_meter = 0.70306957964
         inch_to_millimeter = 25.4
         feet_to_meter = 0.3048
         cubicmeter_to_cubicfeet = 35.3146667215
 
+        units_category = is_flowunit_simetric(flow_units)
+
         nodes = []
         for node_id in self.get_all_nodes():
             node_info = self.get_node_info(node_id)
-            if units == UNITS_USCUSTOM:
+            if units_category == UNITS_USCUSTOM:
                 conv_factor = 1. / feet_to_meter
             else:
                 conv_factor = feet_to_meter
@@ -302,7 +348,6 @@ class NetworkTopology(nx.Graph, JsonSerializable):
             node_info["elevation"] *= conv_factor
             if "diameter" in node_info:
                 node_info["diameter"] *= conv_factor
-
             if "max_level" in node_info:
                 node_info["max_level"] *= conv_factor
             if "min_level" in node_info:
@@ -310,7 +355,7 @@ class NetworkTopology(nx.Graph, JsonSerializable):
             if "init_level" in node_info:
                 node_info["init_level"] *= conv_factor
             if "min_vol" in node_info:
-                if units == UNITS_USCUSTOM:
+                if units_category == UNITS_USCUSTOM:
                     node_info["min_vol"] *= cubicmeter_to_cubicfeet
                 else:
                     node_info["min_vol"] *= 1. / cubicmeter_to_cubicfeet
@@ -321,13 +366,13 @@ class NetworkTopology(nx.Graph, JsonSerializable):
         for link_id, link_nodes in self.get_all_links():
             link_info = self.get_link_info(link_id)
 
-            if units == UNITS_USCUSTOM:
+            if units_category == UNITS_USCUSTOM:
                 conv_factor = 1. / feet_to_meter
             else:
                 conv_factor = feet_to_meter
             link_info["length"] *= conv_factor
 
-            if units == UNITS_USCUSTOM:
+            if units_category == UNITS_USCUSTOM:
                 conv_factor = 1. / inch_to_millimeter
             else:
                 conv_factor = inch_to_millimeter
@@ -336,12 +381,12 @@ class NetworkTopology(nx.Graph, JsonSerializable):
             links.append((link_id, link_nodes, link_info))
 
         curves = {}
-        flow_convert_factor = _get_flow_convert_factor(units, self.__units)
+        flow_convert_factor = _get_flow_convert_factor(flow_units, self.__flow_units)
         for curve_id, (curve_type, curve_data) in self.__curves.items():
             x_conv_factor, y_conv_factor = None, None
 
             if curve_type == EpanetConstants.EN_VOLUME_CURVE:
-                if units == UNITS_USCUSTOM:
+                if units_category == UNITS_USCUSTOM:
                     x_conv_factor = 1. / feet_to_meter
                     y_conv_factor = 1. / cubicmeter_to_cubicfeet
                 else:
@@ -349,7 +394,7 @@ class NetworkTopology(nx.Graph, JsonSerializable):
                     y_conv_factor = cubicmeter_to_cubicfeet
             elif curve_type == EpanetConstants.EN_PUMP_CURVE:
                 x_conv_factor = flow_convert_factor
-                if units == UNITS_USCUSTOM:
+                if units_category == UNITS_USCUSTOM:
                     y_conv_factor = 1. / feet_to_meter
                 else:
                     y_conv_factor = feet_to_meter
@@ -358,7 +403,7 @@ class NetworkTopology(nx.Graph, JsonSerializable):
                 y_conv_factor = 1.
             elif curve_type == EpanetConstants.EN_HLOSS_CURVE:
                 x_conv_factor = flow_convert_factor
-                if units == UNITS_USCUSTOM:
+                if units_category == UNITS_USCUSTOM:
                     y_conv_factor = 1. / feet_to_meter
                 else:
                     y_conv_factor = feet_to_meter
@@ -372,7 +417,8 @@ class NetworkTopology(nx.Graph, JsonSerializable):
             curves[curve_id] = (curve_type, curve_data_new)
 
         return NetworkTopology(f_inp=self.name, nodes=nodes, links=links, pumps=self.pumps,
-                               valves=self.valves, units=units, curves=curves,
+                               valves=self.valves, flow_units=flow_units,
+                               pressure_units=pressure_units, curves=curves,
                                patterns=self.__patterns)
 
     def get_all_nodes(self) -> list[str]:
@@ -706,21 +752,50 @@ class NetworkTopology(nx.Graph, JsonSerializable):
         return deepcopy(self.__valves)
 
     @property
-    def units(self) -> int:
+    def flow_units(self) -> int:
         """
-        Gets the used measurement units category.
+        Return the flow unit ID.
 
-        Will be one of the following constants:
+        Will be one of the following EPANET constants:
 
-            - UNITS_USCUSTOM = 0  (US Customary)
-            - UNITS_SIMETRIC = 1  (SI Metric)
+            - EN_CFS  = 0  (cubic foot/sec)
+            - EN_GPM  = 1  (gal/min)
+            - EN_MGD  = 2  (Million gal/day)
+            - EN_IMGD = 3  (Imperial MGD)
+            - EN_AFD  = 4  (ac-foot/day)
+            - EN_LPS  = 5  (liter/sec)
+            - EN_LPM  = 6  (liter/min)
+            - EN_MLD  = 7  (Megaliter/day)
+            - EN_CMH  = 8  (cubic meter/hr)
+            - EN_CMD  = 9  (cubic meter/day)
+            - EN_CMS  = 10 (cubic meter/sec)
 
         Returns
         -------
         `int`
-            Measurement units category.
+            Flow unit ID.
         """
-        return self.__units
+        return self.__flow_units
+
+    @property
+    def pressure_units(self) -> int:
+        """
+        Returns the pressure unit ID.
+
+        Will be one of the following EPANET constants:
+
+            - EN_PSI    = 0 (Pounds per square inch)
+            - EN_KPA    = 1 (Kilopascals)
+            - EN_METERS = 2 (Meters)
+            - EN_BAR    = 3 (Bar)
+            - EN_FEET   = 4 (Feet)
+
+        Returns
+        -------
+        `int`
+            Pressure unit ID.
+        """
+        return self.__pressure_units
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, NetworkTopology):
@@ -737,7 +812,8 @@ class NetworkTopology(nx.Graph, JsonSerializable):
             and self.get_all_nodes() == other.get_all_nodes() \
             and all(link_a[0] == link_b[0] and link_a[1] == link_b[1]
                     for link_a, link_b in zip(self.get_all_links(), other.get_all_links())) \
-            and self.__units == other.units \
+            and self.__flow_units == other.flow_units \
+            and self.__pressure_units == other.pressure_units \
             and self.get_all_pumps() == other.get_all_pumps() \
             and self.get_all_valves() == other.get_all_valves() \
             and self.__curves == other.curves \
@@ -746,7 +822,8 @@ class NetworkTopology(nx.Graph, JsonSerializable):
     def __str__(self) -> str:
         return f"f_inp: {self.name} nodes: {self.__nodes} links: {self.__links} " +\
             f"pumps: {self.__pumps} valves: {self.__valves} " +\
-            f"units: {unitscategoryid_to_str(self.__units)}"
+            f"flow_units: {flowunit_to_str(self.__flow_units)} " +\
+            f"pressure_units: {pressureunit_to_str(self.__pressure_units)}"
 
     def get_attributes(self) -> dict:
         return super().get_attributes() | {"f_inp": self.name,
@@ -756,7 +833,8 @@ class NetworkTopology(nx.Graph, JsonSerializable):
                                            "valves": self.__valves,
                                            "curves": self.__curves,
                                            "patterns": self.__patterns,
-                                           "units": self.__units}
+                                           "flow_units": self.__flow_units,
+                                           "pressure_units": self.__pressure_units}
 
     def to_gis(self, coord_reference_system: str = None, pumps_as_points: bool = False,
                valves_as_points: bool = False) -> dict:

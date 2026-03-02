@@ -373,25 +373,27 @@ Units of Measurement
 
 The units of measurements are stored in the sensor configuration:
 
-+----------------------------+--------------------------------------------------------------------------------------+
-| Units of Measurements      | Attribute in the sensor configuration                                                |
-+============================+======================================================================================+
-| Hydraulics units           | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.flow_unit`                   |
-+----------------------------+--------------------------------------------------------------------------------------+
-| Water quality unit         | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.quality_unit`                |
-+----------------------------+--------------------------------------------------------------------------------------+
-| Bulk species mass unit     | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.bulk_species_mass_unit`      |
-+----------------------------+--------------------------------------------------------------------------------------+
-| Surface species mass unit  | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.surface_species_mass_unit`   |
-+----------------------------+--------------------------------------------------------------------------------------+
-| Surface species area unit  | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.surface_species_area_unit`   |
-+----------------------------+--------------------------------------------------------------------------------------+
++---------------------------+------------------------------------------------------------------------------------+
+| Units of Measurements     | Attribute in the sensor configuration                                              |
++===========================+====================================================================================+
+| Flow units                | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.flow_unit`                 |
++---------------------------+------------------------------------------------------------------------------------+
+| Pressure units            | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.pressure_unit`             |
++---------------------------+------------------------------------------------------------------------------------+
+| Water quality unit        | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.quality_unit`              |
++---------------------------+------------------------------------------------------------------------------------+
+| Bulk species mass unit    | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.bulk_species_mass_unit`    |
++---------------------------+------------------------------------------------------------------------------------+
+| Surface species mass unit | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.surface_species_mass_unit` |
++---------------------------+------------------------------------------------------------------------------------+
+| Surface species area unit | :func:`~epyt_flow.simulation.sensor_config.SensorConfig.surface_species_area_unit` |
++---------------------------+------------------------------------------------------------------------------------+
 
 For a full list of supported measurement units and how they releate to each other
 can be found in the
 `EPANET documentation <http://wateranalytics.org/EPANET/_units.html>`_.
 
-The units can be changed (i.e. measurements are converted) by calling the function
+The units can be changed (i.e., measurements are converted) by calling the function
 :func:`~epyt_flow.simulation.scada.scada_data.ScadaData.convert_units` of a
 :class:`~epyt_flow.simulation.scada.scada_data.ScadaData`
 instances.
@@ -403,12 +405,16 @@ Example of getting and changing the measurement units:
     # Running a simulation of loading a ScadaData instance
     # ...
 
-    # Show current hydraulic (i.e. flow) unit in a human-readable format
+    # Show current flow and pressure unit in a human-readable format
     print(flowunit_to_str(scada_data.sensor_config.flow_unit))
+    print(pressureunit_to_str(scada_data.sensor_config.pressure_unit))
 
-    # Change flow units to gal/min -- note that this changes the hydraulic units to US CUSTOM
-    scada_data_new = scada_data.convert_units(EpanetConstants.EN_GPM)
+    # Change flow units to gal/min and pressure units to pounds per square inch (psi) --
+    # note that this changes the hydraulic units to US CUSTOM
+    scada_data_new = scada_data.convert_units(flow_unit=EpanetConstants.EN_GPM,
+                                              pressure_unit=EpanetConstants.EN_PSI)
     print(flowunit_to_str(scada_data_new.sensor_config.flow_unit))
+    print(pressureunit_to_str(scada_data_new.sensor_config.pressure_unit))
 
 
 .. _scada_import_export:

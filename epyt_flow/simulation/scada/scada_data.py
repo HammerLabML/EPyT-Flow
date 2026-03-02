@@ -11,10 +11,6 @@ import pandas as pd
 from epanet_plus import EpanetConstants
 
 from ..sensor_config import SensorConfig, valid_sensor_types, \
-    is_flowunit_simetric, massunit_to_str, flowunit_to_str,\
-    qualityunit_to_str, areaunit_to_str,\
-    MASS_UNIT_MG, MASS_UNIT_UG, TIME_UNIT_HRS, MASS_UNIT_MOL, MASS_UNIT_MMOL, \
-    AREA_UNIT_CM2, AREA_UNIT_FT2, AREA_UNIT_M2, \
     SENSOR_TYPE_LINK_FLOW, SENSOR_TYPE_LINK_QUALITY,  SENSOR_TYPE_NODE_DEMAND, \
     SENSOR_TYPE_NODE_PRESSURE, SENSOR_TYPE_NODE_QUALITY, SENSOR_TYPE_PUMP_STATE, \
     SENSOR_TYPE_PUMP_EFFICIENCY, SENSOR_TYPE_PUMP_ENERGYCONSUMPTION, \
@@ -24,7 +20,11 @@ from ..events import SensorFault, SensorReadingAttack, SensorReadingEvent
 from ...uncertainty import SensorNoise
 from ...serialization import serializable, Serializable, SCADA_DATA_ID
 from ...topology import NetworkTopology, UNITS_USCUSTOM, UNITS_SIMETRIC
-from ...utils import plot_timeseries_data, _get_flow_convert_factor
+from ...utils import plot_timeseries_data, _get_flow_convert_factor, \
+    _get_pressure_convert_factor, is_flowunit_simetric, massunit_to_str, flowunit_to_str,\
+    qualityunit_to_str, areaunit_to_str, pressureunit_to_str, \
+    MASS_UNIT_MG, MASS_UNIT_UG, TIME_UNIT_HRS, MASS_UNIT_MOL, MASS_UNIT_MMOL, \
+    AREA_UNIT_CM2, AREA_UNIT_FT2, AREA_UNIT_M2
 
 
 @serializable(SCADA_DATA_ID, ".epytflow_scada_data")
@@ -540,7 +540,8 @@ class ScadaData(Serializable):
 
         super().__init__(**kwds)
 
-    def convert_units(self, flow_unit: int = None, quality_unit: int = None,
+    def convert_units(self, flow_unit: int = None, pressure_unit: int = None,
+                      quality_unit: int = None,
                       bulk_species_mass_unit: list[int] = None,
                       surface_species_mass_unit: list[int] = None,
                       surface_species_area_unit: int = None) -> Any:
@@ -554,23 +555,36 @@ class ScadaData(Serializable):
         Parameters
         ----------
         flow_unit : `int`, optional
-            New units of hydraulic measurements -- note that the flow unit specifies all other
-            hydraulic measurement units.
+            New (flow) units of hydraulic measurements -- note that the flow unit
+            specifies all other hydraulic measurement units, except pressure.
 
             Must be one of the following EPANET constants:
 
-                - EN_CFS  = 0 (cubic foot/sec)
-                - EN_GPM  = 1 (gal/min)
-                - EN_MGD  = 2 (Million gal/day)
-                - EN_IMGD = 3 (Imperial MGD)
-                - EN_AFD  = 4 (ac-foot/day)
-                - EN_LPS  = 5 (liter/sec)
-                - EN_LPM  = 6 (liter/min)
-                - EN_MLD  = 7 (Megaliter/day)
-                - EN_CMH  = 8 (cubic meter/hr)
-                - EN_CMD  = 9 (cubic meter/day)
+                - EN_CFS  = 0  (cubic foot/sec)
+                - EN_GPM  = 1  (gal/min)
+                - EN_MGD  = 2  (Million gal/day)
+                - EN_IMGD = 3  (Imperial MGD)
+                - EN_AFD  = 4  (ac-foot/day)
+                - EN_LPS  = 5  (liter/sec)
+                - EN_LPM  = 6  (liter/min)
+                - EN_MLD  = 7  (Megaliter/day)
+                - EN_CMH  = 8  (cubic meter/hr)
+                - EN_CMD  = 9  (cubic meter/day)
+                - EN_CMS  = 10 (cubic meter/sec)
 
-            If None, units of hydraulic measurement are not changed.
+            If None, units of dependent hydraulic measurement are not changed.
+
+            The default is None.
+        pressure_unit : `int`, optional
+            New pressure units of hydraulic measurementsO
+
+            Must be one of the following EPANET constants:
+
+                - EN_PSI    = 0 (Pounds per square inch)
+                - EN_KPA    = 1 (Kilopascals)
+                - EN_METERS = 2 (Meters)
+                - EN_BAR    = 3 (Bar)
+                - EN_FEET   = 4 (Feet)
 
             The default is None.
         quality_unit : `int`, optional
@@ -639,8 +653,15 @@ class ScadaData(Serializable):
             if not isinstance(flow_unit, int):
                 raise TypeError("'flow_unit' must be a an instance of 'int' " +
                                 f"but not of '{type(flow_unit)}'")
-            if flow_unit not in range(10):
+            if flow_unit not in range(11):
                 raise ValueError("Invalid value of 'flow_unit'")
+
+        if pressure_unit is not None:
+            if not isinstance(pressure_unit, int):
+                raise TypeError("'pressure_unit' must be a an instance of 'int' " +
+                                f"but not of '{type(pressure_unit)}'")
+            if pressure_unit not in range(5):
+                raise ValueError("Invalid value of 'pressure_unit'")
 
         if quality_unit is not None:
             if not isinstance(quality_unit, int):
@@ -711,6 +732,15 @@ class ScadaData(Serializable):
         bulk_species_node_concentrations = attributes["bulk_species_node_concentration_raw"]
         bulk_species_link_concentrations = attributes["bulk_species_link_concentration_raw"]
 
+        if pressure_unit is not None:
+            old_pressure_unit = self.__sensor_config.pressure_unit
+            if pressure_unit == old_pressure_unit:
+                warnings.warn("'pressure_unit' is identical to the current pressure units " +
+                              "-- nothing to do!", UserWarning)
+            else:
+                convert_factor = _get_pressure_convert_factor(pressure_unit, old_pressure_unit)
+                pressure_data *= convert_factor
+
         if flow_unit is not None:
             old_flow_unit = self.__sensor_config.flow_unit
             if flow_unit == old_flow_unit:
@@ -724,19 +754,13 @@ class ScadaData(Serializable):
                 demand_data *= convert_factor
 
                 if is_flowunit_simetric(flow_unit) != is_flowunit_simetric(old_flow_unit):
-                    # Convert tank volume and pressure
+                    # Convert tank volume
                     convert_factor = None
-                    convert_factor_pressure = None
                     if is_flowunit_simetric(flow_unit) is True and \
                             is_flowunit_simetric(old_flow_unit) is False:
                         convert_factor_volume = .0283168
-                        convert_factor_pressure = .70325
                     else:
                         convert_factor_volume = 35.3147
-                        convert_factor_pressure = 1.4219702084872
-
-                    if pressure_data is not None:
-                        pressure_data *= convert_factor_pressure
 
                     if tanks_volume_data is not None:
                         tanks_volume_data *= convert_factor_volume
@@ -809,6 +833,10 @@ class ScadaData(Serializable):
         if flow_unit is not None:
             new_flow_unit = flow_unit
 
+        new_pressure_unit = self.__sensor_config.pressure_unit
+        if pressure_unit is not None:
+            new_pressure_unit = pressure_unit
+
         new_quality_unit = self.__sensor_config.quality_unit
         if quality_unit is not None:
             new_quality_unit = quality_unit
@@ -842,6 +870,7 @@ class ScadaData(Serializable):
                                      surfacespecies_id_to_idx=self.__sensor_config.
                                         surfacespecies_id_to_idx,
                                      flow_unit=new_flow_unit,
+                                     pressure_unit=new_pressure_unit,
                                      pressure_sensors=self.__sensor_config.pressure_sensors,
                                      flow_sensors=self.__sensor_config.flow_sensors,
                                      demand_sensors=self.__sensor_config.demand_sensors,
@@ -865,11 +894,8 @@ class ScadaData(Serializable):
                                      surface_species_mass_unit=new_surface_species_mass_unit,
                                      surface_species_area_unit=new_surface_species_area_unit)
 
-        if flow_unit is not None:
-            if is_flowunit_simetric(flow_unit):
-                network_topo = self.network_topo.convert_units(UNITS_SIMETRIC)
-            else:
-                network_topo = self.network_topo.convert_units(UNITS_USCUSTOM)
+        if flow_unit is not None or pressure_unit is not None:
+            network_topo = self.network_topo.convert_units(new_flow_unit, new_pressure_unit)
         else:
             network_topo = self.network_topo
 
@@ -2267,8 +2293,7 @@ class ScadaData(Serializable):
         pressure_sensors = sensor_locations if sensor_locations is not None else \
             self.__sensor_config.pressure_sensors
 
-        pressure_unit = "m" if is_flowunit_simetric(self.__sensor_config.flow_unit) else "psi"
-        y_axis_label = f"Pressure in ${pressure_unit}$"
+        y_axis_label = f"Pressure in ${pressureunit_to_str(self.__sensor_config.pressure_unit)}$"
 
         return plot_timeseries_data(data.T, labels=[f"Node {n_id}" for n_id in pressure_sensors],
                                     x_axis_label=self.__get_x_axis_label(),
