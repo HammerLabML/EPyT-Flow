@@ -1270,26 +1270,30 @@ class ScadaData(Serializable):
         self.__sensor_readings = None
 
     def get_attributes(self) -> dict:
-        attr = {"network_topo": self.__network_topo,
-                "warnings_code": self.__warnings_code,
-                "sensor_config": self.__sensor_config,
-                "frozen_sensor_config": self.__frozen_sensor_config,
-                "sensor_noise": self.__sensor_noise,
-                "sensor_reading_events": self.__sensor_reading_events,
-                "pressure_data_raw": self.__pressure_data_raw,
-                "flow_data_raw": self.__flow_data_raw,
-                "demand_data_raw": self.__demand_data_raw,
-                "node_quality_data_raw": self.__node_quality_data_raw,
-                "link_quality_data_raw": self.__link_quality_data_raw,
-                "sensor_readings_time": self.__sensor_readings_time,
-                "pumps_state_data_raw": self.__pumps_state_data_raw,
-                "valves_state_data_raw": self.__valves_state_data_raw,
-                "tanks_volume_data_raw": self.__tanks_volume_data_raw,
-                "surface_species_concentration_raw": self.__surface_species_concentration_raw,
-                "bulk_species_node_concentration_raw": self.__bulk_species_node_concentration_raw,
-                "bulk_species_link_concentration_raw": self.__bulk_species_link_concentration_raw,
-                "pumps_energy_usage_data_raw": self.__pumps_energy_usage_data_raw,
-                "pumps_efficiency_data_raw": self.__pumps_efficiency_data_raw}
+        attr = {"network_topo": deepcopy(self.__network_topo),
+                "warnings_code": deepcopy(self.__warnings_code),
+                "sensor_config": deepcopy(self.__sensor_config),
+                "frozen_sensor_config": deepcopy(self.__frozen_sensor_config),
+                "sensor_noise": deepcopy(self.__sensor_noise),
+                "sensor_reading_events": deepcopy(self.__sensor_reading_events),
+                "pressure_data_raw": deepcopy(self.__pressure_data_raw),
+                "flow_data_raw": deepcopy(self.__flow_data_raw),
+                "demand_data_raw": deepcopy(self.__demand_data_raw),
+                "node_quality_data_raw": deepcopy(self.__node_quality_data_raw),
+                "link_quality_data_raw": deepcopy(self.__link_quality_data_raw),
+                "sensor_readings_time": deepcopy(self.__sensor_readings_time),
+                "pumps_state_data_raw": deepcopy(self.__pumps_state_data_raw),
+                "valves_state_data_raw": deepcopy(self.__valves_state_data_raw),
+                "tanks_volume_data_raw": deepcopy(self.__tanks_volume_data_raw),
+                "surface_species_concentration_raw":
+                    deepcopy(self.__surface_species_concentration_raw),
+                "bulk_species_node_concentration_raw":
+                    deepcopy(self.__bulk_species_node_concentration_raw),
+                "bulk_species_link_concentration_raw":
+                    deepcopy(self.__bulk_species_link_concentration_raw),
+                "pumps_energy_usage_data_raw": deepcopy(self.__pumps_energy_usage_data_raw),
+                "pumps_efficiency_data_raw": deepcopy(self.__pumps_efficiency_data_raw)
+                }
 
         if self.__frozen_sensor_config is True:
             def __create_sparse_array(sensors: list[str], map_sensor_to_idx: Callable[str, int],
