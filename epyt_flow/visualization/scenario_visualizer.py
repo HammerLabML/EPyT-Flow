@@ -14,7 +14,7 @@ from svgpath2mpl import parse_path
 from ..simulation.scenario_simulator import ScenarioSimulator
 from ..simulation.scada.scada_data import ScadaData
 from ..visualization import JunctionObject, EdgeObject, ColorScheme, \
-    epyt_flow_colors
+    epyt_flow_colors, my_draw_networkx_nodes
 
 PUMP_PATH = ('M 202.5 93 A 41.5 42 0 0 0 161 135 A 41.5 42 0 0 0 202.5 177 A '
              '41.5 42 0 0 0 244 135 A 41.5 42 0 0 0 241.94922 122 L 278 122 '
@@ -281,52 +281,40 @@ class ScenarioVisualizer:
         nxp.draw_networkx_edges(self.topology, ax=self.ax,
                                 label='Pipes',
                                 **self.pipe_parameters.get_frame(frame_number))
-        nxp.draw_networkx_nodes(self.topology, ax=self.ax,
-                                label='Junctions',
-                                **self.junction_parameters.get_frame(
-                                    frame_number))
-        nxp.draw_networkx_nodes(self.topology, ax=self.ax,
-                                label='Tanks',
-                                **self.tank_parameters.get_frame(frame_number))
-        nxp.draw_networkx_nodes(self.topology, ax=self.ax,
-                                label='Reservoirs',
-                                **self.reservoir_parameters.get_frame(
-                                    frame_number))
-        nxp.draw_networkx_nodes(
-            self.topology, ax=self.ax,
-            label='Valves', **self.valve_parameters.get_frame(frame_number))
-        nxp.draw_networkx_nodes(
-            self.topology,
-            ax=self.ax, label='Pumps',
-            **self.pump_parameters.get_frame(frame_number))
+        my_draw_networkx_nodes(self.topology, ax=self.ax, label='Junctions',
+                               **self.junction_parameters.get_frame(frame_number))
+        my_draw_networkx_nodes(self.topology, ax=self.ax, label='Tanks',
+                               **self.tank_parameters.get_frame(frame_number))
+        my_draw_networkx_nodes(self.topology, ax=self.ax, label='Reservoirs',
+                               **self.reservoir_parameters.get_frame(frame_number))
+        my_draw_networkx_nodes(self.topology, ax=self.ax, label='Valves',
+                               **self.valve_parameters.get_frame(frame_number))
+        my_draw_networkx_nodes(self.topology, ax=self.ax, label='Pumps',
+                               **self.pump_parameters.get_frame(frame_number))
 
         for key, mask in self.masks.items():
             if key == 'nodes':
-                nxp.draw_networkx_nodes(self.topology, ax=self.ax,
-                                        **self.junction_parameters.get_frame_mask(
-                                            mask,
-                                            self.color_scheme.node_color))
+                my_draw_networkx_nodes(self.topology, ax=self.ax,
+                                       **self.junction_parameters.
+                                        get_frame_mask(mask, self.color_scheme.node_color))
             if key == 'pumps':
-                nxp.draw_networkx_nodes(
+                my_draw_networkx_nodes(
                     self.topology,
                     ax=self.ax,
                     **self.pump_parameters.get_frame_mask(mask,
                                                           self.color_scheme.pump_color))
             if key == 'links':
-                nxp.draw_networkx_edges(self.topology, ax=self.ax,
-                                        **self.pipe_parameters.get_frame_mask(
-                                            frame_number,
-                                            self.color_scheme.pipe_color))
+                my_draw_networkx_nodes(self.topology, ax=self.ax,
+                                       **self.pipe_parameters.
+                                        get_frame_mask(frame_number, self.color_scheme.pipe_color))
             if key == 'tanks':
-                nxp.draw_networkx_nodes(self.topology, ax=self.ax,
-                                        **self.tank_parameters.get_frame_mask(
-                                            mask,
-                                            self.color_scheme.tank_color))
+                my_draw_networkx_nodes(self.topology, ax=self.ax,
+                                       **self.tank_parameters.
+                                        get_frame_mask(mask, self.color_scheme.tank_color))
             if key == 'valves':
-                nxp.draw_networkx_nodes(
-                    self.topology, ax=self.ax,
-                    **self.valve_parameters.get_frame_mask(mask,
-                                                           self.color_scheme.valve_color))
+                my_draw_networkx_nodes(self.topology, ax=self.ax,
+                                       **self.valve_parameters.
+                                       get_frame_mask(mask, self.color_scheme.valve_color))
 
         self._draw_labels()
         self.ax.legend(fontsize=6)

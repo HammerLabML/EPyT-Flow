@@ -4,9 +4,12 @@ scenarios.
 """
 import inspect
 from typing import Optional, Union, List, Tuple
+from collections.abc import Iterable
 
-import matplotlib as mpl
+import networkx as nx
 import networkx.drawing.nx_pylab as nxp
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import CubicSpline
 
@@ -19,6 +22,82 @@ stat_funcs = {
     'min': np.min,
     'max': np.max
 }
+
+
+def my_draw_networkx_nodes(
+    G,
+    pos,
+    nodelist=None,
+    node_size=300,
+    node_color="#1f78b4",
+    node_shape="o",
+    alpha=None,
+    cmap=None,
+    vmin=None,
+    vmax=None,
+    ax=None,
+    linewidths=None,
+    edgecolors=None,
+    label=None,
+    margins=None,
+    hide_ticks=True,
+):
+    if ax is None:
+        ax = plt.gca()
+
+    if nodelist is None:
+        nodelist = list(G)
+
+    if len(nodelist) == 0:  # empty nodelist, no drawing
+        return mpl.collections.PathCollection(None)
+
+    try:
+        xy = np.asarray([pos[v] for v in nodelist])
+    except KeyError as err:
+        raise nx.NetworkXError(f"Node {err} has no position.") from err
+
+    if isinstance(alpha, Iterable):
+        node_color = nxp.apply_alpha(node_color, alpha, nodelist, cmap, vmin, vmax)
+        alpha = None
+
+    if not isinstance(node_shape, np.ndarray) and not isinstance(node_shape, list):
+        node_shape = np.array([node_shape for _ in range(len(nodelist))])
+    elif isinstance(node_shape, list):
+        node_shape = np.asarray(node_shape)
+
+    for shape in list(set(node_shape)):
+        node_collection = ax.scatter(
+            xy[node_shape == shape, 0],
+            xy[node_shape == shape, 1],
+            s=node_size,
+            c=node_color,
+            marker=shape,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            alpha=alpha,
+            linewidths=linewidths,
+            edgecolors=edgecolors,
+            label=label,
+        )
+    if hide_ticks:
+        ax.tick_params(
+            axis="both",
+            which="both",
+            bottom=False,
+            left=False,
+            labelbottom=False,
+            labelleft=False,
+        )
+
+    if margins is not None:
+        if isinstance(margins, Iterable):
+            ax.margins(*margins)
+        else:
+            ax.margins(margins)
+
+    node_collection.set_zorder(2)
+    return node_collection
 
 
 class JunctionObject:
